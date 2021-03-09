@@ -27,7 +27,7 @@ def mia_cicular_picture(lon, lat, radius, label):
         handler.write(image_data)
 
 
-api_key = ''  # YOUR HERE API KEY
+api_key = 'kVpNlN_Zq68gCvCKaZGJA8No9l-9nQfWKls02XySZus'  # YOUR HERE API KEY
 positioning_headers = {'Content-Type': 'application/json'}
 positioning_url = 'https://pos.ls.hereapi.com/positioning/v1/locate?apiKey={}'.format(api_key)
 if platform.system() == 'Windows':
@@ -42,7 +42,6 @@ elif platform.system() == 'Darwin':
     command = '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -s -x'  # the shell command
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=True)
     output = process.communicate()
-    wifi_list = open('wifi_plist.txt', mode='r', encoding='utf-8').read()
     hotspots_plist = plistlib.loads(str.encode(output[0].decode('utf-8', errors='ignore')), fmt=plistlib.FMT_XML)
     mac_list = set()
     for hotspot in hotspots_plist:
