@@ -1,19 +1,28 @@
 import json
-import os
 import platform
 import plistlib
 import re
 import subprocess
-import requests
 import time
+
+import requests
 
 
 def rev_geocoder(lat, lon):
-    hls_rev_geocoder_url = 'https://reverse.geocoder.ls.hereapi.com/6.2/reversegeocode.json?prox={},{}&mode=retrieveAddress&maxresults=1&gen=9&apiKey={}'.format(lat, lon, api_key)
-    hls_rev_geocode_r = requests.get(hls_rev_geocoder_url)
-    address = json.loads(hls_rev_geocode_r.text)['Response']['View'][0]['Result'][0]['Location']['Address']['Label']
-    print('Address: {}'.format(address))
-    return address
+    rev_geocoder_url = 'https://revgeocode.search.hereapi.com/v1/revgeocode?at={},{}&limit=1&lang=zh-TW&apikey={}'.format(
+        lat, lon, api_key)
+    r = requests.get(rev_geocoder_url)
+    result_title = json.loads(r.text).get('items')[0].get('title')
+    print('Address: {}'.format(result_title))
+    return result_title
+
+
+# def rev_geocoder(lat, lon):
+#     hls_rev_geocoder_url = 'https://reverse.geocoder.ls.hereapi.com/6.2/reversegeocode.json?prox={},{}&mode=retrieveAddress&maxresults=1&gen=9&apiKey={}'.format(lat, lon, api_key)
+#     hls_rev_geocode_r = requests.get(hls_rev_geocoder_url)
+#     address = json.loads(hls_rev_geocode_r.text)['Response']['View'][0]['Result'][0]['Location']['Address']['Label']
+#     print('Address: {}'.format(address))
+#     return address
 
 
 def mia_cicular_picture(lon, lat, radius, label):
@@ -32,12 +41,22 @@ positioning_headers = {'Content-Type': 'application/json'}
 positioning_url = 'https://pos.ls.hereapi.com/positioning/v1/locate?apiKey={}'.format(api_key)
 if platform.system() == 'Windows':
     results = subprocess.check_output(["netsh", "wlan", "show", "network", "bssid"])
-    results = results.decode("ascii")  # needed in python 3
-    result_list = results.replace('\r', '').split('\n')
+    results = results.decode("ascii", errors='ignore')  # needed in python 3
+    results_list = results.replace('\r', '').replace('    ', '').split('\n\n')
+    i = 0
+    parsed_result_list = []
+    for results in results_list:
+        results = results.split('\n')
+        for result in results:
+            if result.startswith('BSSID') or result.startswith(' Signal'):
+                parsed_result_list.append(result.split(' : ')[1].strip())
+            else:
+                continue
     mac_list = set()
-    for element in result_list:
-        if re.match('.*BSSID.*', element):
-            mac_list.add('{"mac": "' + (element.split(' : ')[1]) + '"}')
+    while i < len(parsed_result_list):
+        if i % 2 == 1:
+            mac_list.add('{"mac": "' + parsed_result_list[i - 1] + '", "powrx": ' + str(int((int(parsed_result_list[i].replace('%', '')) / 2) - 100)) + '}')
+        i += 1
 elif platform.system() == 'Darwin':
     command = '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -s -x'  # the shell command
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=True)
@@ -60,11 +79,14 @@ elif platform.system() == 'Darwin':
 wifi_scan_result = '{"wlan":[' + ','.join(i for i in mac_list) + ']}'
 print('Wifi hotspots:\n' + wifi_scan_result)
 network_positioning_r = requests.post(url=positioning_url, data=wifi_scan_result, headers=positioning_headers)
-json_result = json.loads(network_positioning_r.text)
-print('result:\n' + str(json_result))
-lat = json_result['location']['lat']
-lon = json_result['location']['lng']
-positioning_log = open('positioning_result_log.txt', mode='a', encoding='utf-8')
-radius = json_result['location']['accuracy']
-address_label = rev_geocoder(lat, lon)
-mia_cicular_picture(lon, lat, radius, address_label)
+if network_positioning_r.status_code == 200:
+    json_result = json.loads(network_positioning_r.text)
+    print('result:\n' + str(json_result))
+    lat = json_result['location']['lat']
+    lon = json_result['location']['lng']
+    positioning_log = open('positioning_result_log.txt', mode='a', encoding='utf-8')
+    radius = json_result['location']['accuracy']
+    address_label = rev_geocoder(lat, lon)
+    mia_cicular_picture(lon, lat, radius, address_label)
+else:
+    print(network_positioning_r.text)
