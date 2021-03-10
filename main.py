@@ -9,12 +9,20 @@ import requests
 
 
 def rev_geocoder(lat, lon):
-    rev_geocoder_url = 'https://revgeocode.search.hereapi.com/v1/revgeocode?at={},{}&limit=1&lang=zh-TW&apikey={}'.format(
+    rev_geocoder_url = 'https://revgeocode.search.hereapi.com/v1/revgeocode?at={},{}&limit=10&lang=zh-TW&apikey={}'.format(
         lat, lon, api_key)
     r = requests.get(rev_geocoder_url)
-    result_title = json.loads(r.text).get('items')[0].get('title')
-    print('Address: {}'.format(result_title))
-    return result_title
+    rev_geocoder_result_items = json.loads(r.text).get('items')
+    for rev_geocoder_result_item in rev_geocoder_result_items:
+        result_type = rev_geocoder_result_item['resultType']
+        if result_type == 'houseNumber' or result_type == 'street' or result_type == 'intersection':
+            result_position = rev_geocoder_result_item['position']
+            result_lat = result_position['lat']
+            result_lon = result_position['lng']
+            result_title = rev_geocoder_result_item['title']
+            return (result_lat, result_lon, result_title)
+        else:
+            continue
 
 
 # def rev_geocoder(lat, lon):
@@ -23,7 +31,6 @@ def rev_geocoder(lat, lon):
 #     address = json.loads(hls_rev_geocode_r.text)['Response']['View'][0]['Result'][0]['Location']['Address']['Label']
 #     print('Address: {}'.format(address))
 #     return address
-
 
 def mia_cicular_picture(lon, lat, radius, label):
     mia_url = 'https://image.maps.ls.hereapi.com/mia/1.6/mapview?c={},{}&u={}&w=1440&h=900&ml=cht' \
@@ -55,7 +62,8 @@ if platform.system() == 'Windows':
     mac_list = set()
     while i < len(parsed_result_list):
         if i % 2 == 1:
-            mac_list.add('{"mac": "' + parsed_result_list[i - 1] + '", "powrx": ' + str(int((int(parsed_result_list[i].replace('%', '')) / 2) - 100)) + '}')
+            signal_percentage = int(parsed_result_list[i].replace('%', ''))
+            mac_list.add('{"mac": "' + parsed_result_list[i - 1] + '", "powrx": ' + str(int((signal_percentage / 2) - 100)) + '}')
         i += 1
 elif platform.system() == 'Darwin':
     command = '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -s -x'  # the shell command
@@ -86,7 +94,7 @@ if network_positioning_r.status_code == 200:
     lon = json_result['location']['lng']
     positioning_log = open('positioning_result_log.txt', mode='a', encoding='utf-8')
     radius = json_result['location']['accuracy']
-    address_label = rev_geocoder(lat, lon)
+    address_lat, address_lon, address_label = rev_geocoder(lat, lon)
     mia_cicular_picture(lon, lat, radius, address_label)
 else:
     print(network_positioning_r.text)
