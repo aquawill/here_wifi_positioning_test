@@ -45,7 +45,7 @@ def mia_cicular_picture(lon, lat, radius, label):
 
 api_key = 'kVpNlN_Zq68gCvCKaZGJA8No9l-9nQfWKls02XySZus'  # YOUR HERE API KEY
 positioning_headers = {'Content-Type': 'application/json'}
-positioning_url = 'https://pos.ls.hereapi.com/positioning/v1/locate?apiKey={}'.format(api_key)
+positioning_url = 'https://positioning.hereapi.com/v2/locate?apiKey={}'.format(api_key)
 if platform.system() == 'Windows':
     results = subprocess.check_output(["netsh", "wlan", "show", "network", "bssid"])
     results = results.decode("ascii", errors='ignore')  # needed in python 3
@@ -63,7 +63,8 @@ if platform.system() == 'Windows':
     while i < len(parsed_result_list):
         if i % 2 == 1:
             signal_percentage = int(parsed_result_list[i].replace('%', ''))
-            mac_list.add('{"mac": "' + parsed_result_list[i - 1] + '", "powrx": ' + str(int((signal_percentage / 2) - 100)) + '}')
+            mac_list.add(
+                '{"mac": "' + parsed_result_list[i - 1] + '", "rss": ' + str(int((signal_percentage / 2) - 100)) + '}')
         i += 1
 elif platform.system() == 'Darwin':
     command = '/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -s -x'  # the shell command
